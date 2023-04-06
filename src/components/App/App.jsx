@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { ToastContainer } from 'react-toastify';
 import { toast } from 'react-toastify';
 import { animateScroll as scroll } from 'react-scroll';
@@ -11,58 +11,51 @@ import Modal from 'components/Modal';
 import { Container } from './App.styled';
 import { Error } from './App.styled';
 
-export class App extends Component {
-  state = {
-    images: [],
-    searchQuery: '',
-    isLoading: false,
-    error: null,
-    page: 1,
-    largeImageURL: '',
-    tags: '',
-    isModalOpen: false,
+const App = () => {
+  const [images, setImages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [largeImgURL, setLargeImgURL] = useState('');
+  const [tags, setTags] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    getImages(searchQuery, page);
+  }, [page, searchQuery]);
+
+  const getQueryOnSubmit = searchQuery => {
+    setSearchQuery(searchQuery);
+    setImages([]);
+    setPage(1);
   };
 
-  componentDidUpdate(_, prevState) {
-    const { searchQuery, page } = this.state;
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
-      this.getImages(searchQuery, page);
-    }
-  }
-
-  getQueryOnSubmit = searchQuery => {
-    this.setState({ searchQuery, images: [], page: 1 });
-  };
-
-  getImages = async (searchQuery, page) => {
-    this.setState({ isLoading: true });
+  const getImages = async (searchQuery, page) => {
     if (!searchQuery) {
       return;
     }
     try {
+      setIsLoading(true);
       const { hits } = await api.getImages(searchQuery, page);
       if (hits.length === 0) {
         toast.warning('Oops, there is no images on this request');
       }
-      this.setState(state => ({
-        images: [...state.images, ...hits],
-      }));
+      setImages(prevImages => [...prevImages, ...hits]);
     } catch (error) {
-      this.setState({ error: error.message });
+      setError(error.message);
       console.error(error);
     } finally {
-      this.setState({ isLoading: false });
+      setIsLoading(false);
     }
   };
 
-  handleLoadMore = () => {
-    this.setState(state => ({
-      page: state.page + 1,
-    }));
-    this.scrollToBottom();
+  const handleLoadMore = () => {
+    setPage(prevPage => prevPage + 1);
+    scrollToBottom();
   };
 
-  scrollToBottom = () => {
+  const scrollToBottom = () => {
     scroll.scrollToBottom({
       duration: 1000,
       delay: 100,
@@ -70,42 +63,33 @@ export class App extends Component {
     });
   };
 
-  openModal = (largeImageURL, tags) => {
-    this.setState({
-      isModalOpen: true,
-      largeImageURL: largeImageURL,
-      tags: tags,
-    });
+  const openModal = (largeImgURL, tags) => {
+    setIsModalOpen(true);
+    setLargeImgURL(largeImgURL);
+    setTags(tags);
   };
 
-  closeModal = () => {
-    this.setState({
-      isModalOpen: false,
-    });
+  const closeModal = () => {
+    setIsModalOpen(false);
   };
 
-  render() {
-    const { images, isLoading, error, isModalOpen, largeImageURL, tags } =
-      this.state;
-    const content = images.length > 0;
-    return (
-      <Container>
-        <SearchBar onSubmit={this.getQueryOnSubmit} />
-        {content && <ImageGallery images={images} openModal={this.openModal} />}
-        {content && !isLoading && <Button onClickLoad={this.handleLoadMore} />}
-        {isModalOpen && (
-          <Modal
-            largeImageURL={largeImageURL}
-            tags={tags}
-            onClose={this.closeModal}
-          />
-        )}
-        {isLoading && <Loader />}
-        {error && (
-          <Error>It's a pity, but something went wrong. Try a bit later!</Error>
-        )}
-        <ToastContainer autoClose={3000} />
-      </Container>
-    );
-  }
-}
+  const content = images.length > 0;
+
+  return (
+    <Container>
+      <SearchBar onSubmit={getQueryOnSubmit} />
+      {content && <ImageGallery images={images} openModal={openModal} />}
+      {content && !isLoading && <Button onClickLoad={handleLoadMore} />}
+      {isModalOpen && (
+        <Modal largeImageURL={largeImgURL} tags={tags} onClose={closeModal} />
+      )}
+      {isLoading && <Loader />}
+      {error && (
+        <Error>It's a pity, but something went wrong. Try a bit later!</Error>
+      )}
+      <ToastContainer autoClose={3000} />
+    </Container>
+  );
+};
+
+export default App;
